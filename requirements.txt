@@ -1,1 +1,3 @@
 
+gcc nuevo.c -lncurses -o nuevo
+./nuevo

@@ -70,7 +70,7 @@ int NEXT_FIT(int size,int array[]){
             return current;
         }
 
-        current= (current+4)%MEMORY_LENGTH;
+        current= (current+BLOCK_SIZE)%MEMORY_LENGTH;
 
     }while (current!=LAST_ALLOCATED);
 
@@ -88,7 +88,7 @@ int allocateMemory(int size,int bit){
     }
     else{
         lock_ALIEN_MEMORY;
-        answ= allocateMemory(size,ALIEN_MEMORY);
+        answ= NEXT_FIT(size,ALIEN_MEMORY);
         unlock_ALIEN_MEMORY;
     }
 }
