@@ -1,5 +1,3 @@
-
-
 #include <ncurses.h>
 #include <unistd.h>
 #include <pthread.h>
@@ -58,27 +56,23 @@ Alien aliens[NUMBER_ALIENS];
 Player player;
 // Game game;
 int score;
-int high_score=0;
+int high_score = 0;
 int ch = 0;
 #define vk_enter 10
 
-
 // Funciones de Dibujo
 
+const char *menu_logo[6] = {
 
-const char *menu_logo[6]={
+    "8888ba.88ba             dP                                   dP                                     oo                   ",
+    "88  `8b  `8b            88                                   88                                                          ",
+    "88   88   88 .d8888b. d8888P .d8888b. .d8888b. 88d8b.d8b.    88 88d888b. dP   .dP .d8888b. .d8888b. dP .d8888b. 88d888b. ",
+    "88   88   88 88'  `88   88   88'  `"
+    " 88'  `88 88'`88'`88    88 88'  `88 88   d8' 88'  `88 Y8ooooo. 88 88'  `88 88'  `88 ",
+    "88   88   88 88.  .88   88   88.  ... 88.  .88 88  88  88    88 88    88 88 .88'  88.  .88       88 88 88.  .88 88    88 ",
+    "dP   dP   dP `88888P8   dP   `88888P' `88888P' dP  dP  dP    dP dP    dP 8888P'   `88888P8 `88888P' dP `88888P' dP    dP "
 
-"8888ba.88ba             dP                                   dP                                     oo                   ",
-"88  `8b  `8b            88                                   88                                                          ",
-"88   88   88 .d8888b. d8888P .d8888b. .d8888b. 88d8b.d8b.    88 88d888b. dP   .dP .d8888b. .d8888b. dP .d8888b. 88d888b. ",
-"88   88   88 88'  `88   88   88'  `"" 88'  `88 88'`88'`88    88 88'  `88 88   d8' 88'  `88 Y8ooooo. 88 88'  `88 88'  `88 ",
-"88   88   88 88.  .88   88   88.  ... 88.  .88 88  88  88    88 88    88 88 .88'  88.  .88       88 88 88.  .88 88    88 ",
-"dP   dP   dP `88888P8   dP   `88888P' `88888P' dP  dP  dP    dP dP    dP 8888P'   `88888P8 `88888P' dP `88888P' dP    dP "
-                                                                                                                         
-                                                                                                                                                                                                                      
-                                                                                                                                                                                  
 };
-
 
 const char *item_start_game[2] = {
     "> START GAME <",
@@ -143,30 +137,8 @@ void draw_logo(int h, int w)
     attroff(COLOR_PAIR(1));
 }
 
-void draw_borders() {
-    for (int i = 0; i < COLS-60; i++) {
-        mvprintw(0, i, "#");
-        mvprintw(2, i, "-");
-        mvprintw(LINES - 1, i, "#");
-    }
-    for (int i = 0; i < LINES; i++) {
-        mvprintw(i, 0, "#");
-        mvprintw(i, COLS - 60, "#");
-        mvprintw(i,COLS - 50,"#");
-        mvprintw(i,COLS-1,"#");
-    }
-
-    for(int i=COLS-50;i<COLS;i++){
-        mvprintw(0,i,"#");
-        mvprintw(LINES-1,i,"#");
-    }
-
-    
-}
-
 void draw_game_over()
 {
-
     clear();
     attron(COLOR_PAIR(4));
     mvprintw(LINES / 2 - 2, COLS / 2 - 10, "Game Over");
@@ -178,13 +150,18 @@ void draw_game_over()
     refresh();
 }
 
+void draw_ship(int x, int y)
+{
+    mvprintw(y, x, "  ^  ");
+    mvprintw(y + 1, x, " mAm ");
+    mvprintw(y + 2, x, "mAmAm");
+}
+
 void draw_player()
 {
-
-    
-    attron(COLOR_PAIR(1)); 
-    mvprintw(player.y, player.x, "A");
-    attroff(COLOR_PAIR(1)); 
+    attron(COLOR_PAIR(1));
+    draw_ship(player.x, player.y);
+    attroff(COLOR_PAIR(1));
 
     refresh();
     getch();
@@ -205,6 +182,12 @@ void draw_bullets()
     }
 }
 
+void draw_alien(int x, int y)
+{
+    mvprintw(y - 1, x, "{@}");
+    mvprintw(y, x, "/\"\\");
+}
+
 void draw_aliens()
 {
     for (int i = 0; i < NUMBER_ALIENS; i++)
@@ -212,7 +195,7 @@ void draw_aliens()
         if (aliens[i].active)
         {
             attron(COLOR_PAIR(4));
-            mvprintw(aliens[i].y, aliens[i].x, "X");
+            draw_alien(aliens[i].x, aliens[i].y);
             attroff(COLOR_PAIR(4));
         }
     }
@@ -237,42 +220,50 @@ void update_bullets()
     }
 }
 
-void update_aliens()
+void update_aliens() // ARREGLAR!!!
 {
     for (int i = 0; i < NUMBER_ALIENS; i++)
     {
         if (aliens[i].active)
         {
-            
             aliens[i].x += aliens[i].direction;
-            if ((aliens[i].x == COLS-61 && aliens[i].direction==1) || (aliens[i].x==0 && aliens[i].direction==-1))
+            if ((aliens[i].x == COLS - 3 && aliens[i].direction == 1) || (aliens[i].x == 0 && aliens[i].direction == -1))
             {
-                aliens[i].direction*=-1;
+                aliens[i].direction *= -1;
+                aliens[i].y++;
                 aliens[i].y++;
             }
         }
         else
         {
-            if (rand() % 100 < 5)
+            bool free = true;
+            for (int k = 0; k < NUMBER_ALIENS; k++)
+            {
+                if (aliens[k].y == 3 && aliens[k].x == 0 || aliens[k].y == 4 && aliens[k].x == 0 || aliens[k].y == 5 && aliens[k].x == 0 || aliens[k].y == 6 && aliens[k].x == 0)
+                {
+                    free = false;
+                }
+            }
+            if (free)
             {
                 aliens[i].y = 3;
-                aliens[i].x =0;
+                aliens[i].x = 0;
                 aliens[i].active = 1;
-                aliens[i].direction=1;
-                
+                aliens[i].direction = 1;
             }
+            free = true;
         }
     }
 }
 
-
-
-
-void collision_player(){
-    for(int i=0;i<NUMBER_ALIENS;i++){
-        if((aliens[i].x == player.x && aliens[i].y == player.y && aliens[i].active) || (aliens[i].y == LINES-1)){
+void collision_player()
+{
+    for (int i = 0; i < NUMBER_ALIENS; i++)
+    {
+        if ((aliens[i].x == player.x && aliens[i].y == player.y && aliens[i].active) || (aliens[i].y == LINES - 1))
+        {
             player.lives--;
-            aliens[i].active=0;
+            aliens[i].active = 0;
         }
     }
 }
@@ -288,30 +279,35 @@ void collision_bullets()
         {
             if (aliens[j].active)
             {
-                if (aliens[j].x == bullets[i].x && aliens[j].y == bullets[i].y)
+                for (int x = aliens[j].x; x < aliens[j].x + 3; x++)
                 {
-                    aliens[j].active = 0;
-                    bullets[i].active = 0;
-                    score += 73;
+                    for (int y = aliens[j].y - 1; y < aliens[j].y + 2; y++)
+                    {
+                        if (bullets[i].x == x && bullets[i].y == y)
+                        {
+                            aliens[j].active = 0;
+                            bullets[i].active = 0;
+                            score += 73;
+                            break;
+                        }
+                    }
                 }
             }
         }
     }
 }
 
-
-
-void check_collisions(){
+void check_collisions()
+{
 
     collision_bullets();
     collision_player();
 }
 
-
 void *development_game(void *args)
 {
 
-    int speed=0;
+    int speed = 0;
 
     while (!EXIT)
     {
@@ -320,36 +316,38 @@ void *development_game(void *args)
 
         if (START)
         {
-            //init_game();
-            // draw_logo(h, w);
-            // dibujar la pantalla de inicio
+            // init_game();
+            //  draw_logo(h, w);
+            //  dibujar la pantalla de inicio
         }
         else if (RUN)
         {
             // el juego
             update_bullets();
-            if(!speed){
-            update_aliens();
+            if (!speed)
+            {
+                update_aliens();
             }
 
             check_collisions();
-            if (score > high_score) {
-                    high_score = score;
+            if (score > high_score)
+            {
+                high_score = score;
             }
 
-            if (player.lives <= 0) {
-                actual_state = game_over; 
+            if (player.lives <= 0)
+            {
+                actual_state = game_over;
             }
             clear();
-            draw_borders();
             draw_player();
             draw_bullets();
             draw_aliens();
 
-            mvprintw(2, COLS - 30, "Score: %d", score);
-            mvprintw(5,COLS-30, "High Score: %d", high_score);
-            mvprintw(8,COLS-30, "LIVES: %d",player.lives);
-            //mvprintw()
+            mvprintw(0, 2, "Score: %d", score);
+            mvprintw(0, COLS / 2 - 6, "High Score: %d", high_score);
+            mvprintw(0, COLS - 10, "LIVES: %d", player.lives);
+            // mvprintw()
             refresh();
         }
         else if (GAME_OVER)
@@ -368,11 +366,11 @@ void *development_game(void *args)
 
 void init_game()
 {
-    player.x = COLS /2;
-    player.y = LINES -9;
+    player.x = COLS / 2;
+    player.y = LINES - 9;
     score = 0;
     player.lives = 3;
-    
+
     for (int i = 0; i < NUMBER_BULLETS; i++)
     {
         bullets[i].active = 0;
@@ -395,7 +393,7 @@ void move_player(int direction)
         }
         break;
     case KEY_RIGHT:
-        if (player.x < COLS-61)
+        if (player.x < COLS - 5)
         {
             player.x++;
         }
@@ -407,7 +405,7 @@ void move_player(int direction)
         }
         break;
     case KEY_DOWN:
-        if (player.y < LINES-2)
+        if (player.y < LINES - 3)
         {
             player.y++;
         }
@@ -421,15 +419,13 @@ void shoot()
     {
         if (!bullets[i].active)
         {
-            bullets[i].x = player.x;
-            bullets[i].y = player.y - 1;
+            bullets[i].x = player.x + 2;
+            bullets[i].y = player.y;
             bullets[i].active = 1;
             break;
         }
     }
 }
-
-
 
 void *input_handler(void *args)
 {
@@ -479,7 +475,7 @@ void *input_handler(void *args)
                 {
                 case 0:
                     actual_state = run;
-                    //init_game();
+                    // init_game();
                     break;
                 case 1:
                     actual_state = info;
@@ -538,8 +534,9 @@ void *input_handler(void *args)
             {
                 actual_state = start;
             }
-            else if(ch == 'q'){
-                actual_state= out;
+            else if (ch == 'q')
+            {
+                actual_state = out;
             }
         }
 
