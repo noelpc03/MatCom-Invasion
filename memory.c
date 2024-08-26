@@ -47,7 +47,10 @@ int getBlock(int array[], int ptr, int offset)
 
 void setBlock(int array[], int ptr, int offset, int value)
 {
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
     array[ptr + offset] = value;
 }
 

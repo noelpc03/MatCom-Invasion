@@ -6,9 +6,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#define DELAY 30000
+#define DELAY 60000
 pthread_mutex_t master_mutex = PTHREAD_MUTEX_INITIALIZER;
-
 #define lock_master_mutex pthread_mutex_lock(&master_mutex)
 #define unlock_master_mutex pthread_mutex_unlock(&master_mutex)
 
@@ -20,7 +19,9 @@ typedef enum
     run,
     game_over,
     out,
-    info
+    info,
+    pause_game,
+    see_scores
 } state;
 
 state actual_state = start;
@@ -29,6 +30,8 @@ state actual_state = start;
 #define START (actual_state == start)
 #define RUN (actual_state == run)
 #define GAME_OVER (actual_state == game_over)
+#define PAUSE (actual_state == pause_game)
+#define SEE_SCORES (actual_state == see_scores)
 
 typedef struct
 {
@@ -44,6 +47,13 @@ typedef struct
 {
     int x, y, lives;
 } Player;
+typedef struct
+{
+    Alien aliens[100];    // Estructura que representa los aliens
+    Bullets bullets[100]; // Estructura que representa las balas
+    int score;
+    Player player;
+} GameState;
 
 // typedef struct{
 //     int score;
@@ -58,7 +68,14 @@ Player player;
 int score;
 int high_score = 0;
 int ch = 0;
+int count = 0;
 #define vk_enter 10
+<<<<<<< Updated upstream
+=======
+#define MAX_HIGH_SCORES 10
+int high_scores[MAX_HIGH_SCORES] = {0};
+GameState game_state;
+>>>>>>> Stashed changes
 
 // Funciones de Dibujo
 
@@ -74,15 +91,26 @@ const char *menu_logo[6] = {
 
 };
 
+<<<<<<< Updated upstream
 const char *item_start_game[2] = {
     "> START GAME <",
     "start game",
+=======
+const char *item_start_new_game[2] = {
+    "> START NEW GAME <",
+    "start new game",
+>>>>>>> Stashed changes
 };
 
 // Item info
-const char *item_info[2] = {
-    "> INFO <",
-    "info",
+const char *item_start_saved_game[2] = {
+    "> START SAVED GAME <",
+    "start saved game",
+};
+
+const char *item_best_scores[2] = {
+    "> BEST SCORES <",
+    "best scores",
 };
 
 // Item exit
@@ -150,6 +178,44 @@ void draw_game_over()
     refresh();
 }
 
+<<<<<<< Updated upstream
+=======
+void draw_pause()
+{
+    clear();
+    attron(COLOR_PAIR(5));
+    mvprintw(LINES / 2 - 2, COLS / 2 - 10, "Exit Menu");
+    attroff(COLOR_PAIR(5));
+    mvprintw(LINES / 2, COLS / 2 - 10, "Press 's' to Return to Start Screen");
+    mvprintw(LINES / 2 + 1, COLS / 2 - 10, "Press 'q' to Quit");
+    mvprintw(LINES / 2 + 2, COLS / 2 - 10, "Press 'c' to Save and Quit");
+    mvprintw(LINES / 2 + 3, COLS / 2 - 10, "Score: %d", score);
+    mvprintw(LINES / 2 + 4, COLS / 2 - 10, "High Score: %d", high_score);
+    refresh();
+}
+void draw_high_scores(int high_scores[], int num_scores)
+{
+    clear(); // Limpiar la pantalla antes de mostrar los puntajes
+
+    mvprintw(LINES / 2 - 2, COLS / 2 - 10, "High Scores");
+
+    for (int i = 0; i < num_scores; i++)
+    {
+        if (high_scores[i] < 0)
+        {
+            mvprintw(LINES / 2 + i, COLS / 2 - 10, "%d. %d", i + 1, "---");
+        }
+        else
+        {
+            mvprintw(LINES / 2 + i, COLS / 2 - 10, "%d. %d", i + 1, high_scores[i]);
+        }
+    }
+
+    mvprintw(LINES - 2, (COLS / 2) - 10, "Press 's' to return to Start Menu");
+    refresh(); // Refrescar la pantalla para mostrar los cambios
+}
+
+>>>>>>> Stashed changes
 void draw_ship(int x, int y)
 {
     mvprintw(y, x, "  ^  ");
@@ -222,10 +288,12 @@ void update_bullets()
 
 void update_aliens() // ARREGLAR!!!
 {
+
     for (int i = 0; i < NUMBER_ALIENS; i++)
     {
         if (aliens[i].active)
         {
+<<<<<<< Updated upstream
             aliens[i].x += aliens[i].direction;
             if ((aliens[i].x == COLS - 3 && aliens[i].direction == 1) || (aliens[i].x == 0 && aliens[i].direction == -1))
             {
@@ -250,6 +318,46 @@ void update_aliens() // ARREGLAR!!!
                 aliens[i].x = 0;
                 aliens[i].active = 1;
                 aliens[i].direction = 1;
+=======
+            aliens[i].y += 1;
+
+            // // Cambiar dirección si el alien alcanza el borde de la pantalla
+            // if ((aliens[i].x >= COLS - 3 && aliens[i].direction == 1) || (aliens[i].x <= 0 && aliens[i].direction == -1))
+            // {
+            //     aliens[i].direction *= -1;
+            //     aliens[i].y += 2; // Mover hacia abajo cuando cambia de dirección
+            // }
+        }
+        else
+        {
+            // Intentar activar un nuevo alien con 1% de probabilidad
+            if (rand() % 100 < 1)
+            {
+                int spawn_x = rand() % (COLS - 3); // Generar una posición aleatoria para el nuevo alien
+
+                // Verificar si hay colisión con otros aliens activos
+                int collision = 0;
+                for (int j = 0; j < NUMBER_ALIENS; j++)
+                {
+                    if (aliens[j].active &&
+                        spawn_x >= aliens[j].x &&
+                        spawn_x < aliens[j].x + 3 &&
+                        aliens[j].y == 3)
+                    {
+                        collision = 1;
+                        break;
+                    }
+                }
+
+                // Si no hay colisión, activar el nuevo alien
+                if (!collision)
+                {
+                    aliens[i].y = 3;
+                    aliens[i].x = spawn_x;
+                    aliens[i].active = 1;
+                    aliens[i].direction = 1;
+                }
+>>>>>>> Stashed changes
             }
             free = true;
         }
@@ -299,11 +407,116 @@ void collision_bullets()
 
 void check_collisions()
 {
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
     collision_bullets();
     collision_player();
 }
 
+<<<<<<< Updated upstream
+=======
+// Funciones para guardar y cargar juego
+
+void save_game(GameState *state)
+{
+    FILE *file = fopen("saved_game.bin", "wb");
+    if (file != NULL)
+    {
+        fwrite(state, sizeof(GameState), 1, file);
+        fclose(file);
+    }
+    else
+    {
+        printf("Error al guardar la partida.\n");
+    }
+}
+
+int load_game(GameState *state)
+{
+    FILE *file = fopen("saved_game.bin", "rb");
+    if (file != NULL)
+    {
+        fread(state, sizeof(GameState), 1, file);
+        fclose(file);
+        return 1; // Éxito
+    }
+    else
+    {
+        printf("No se pudo cargar la partida guardada.\n");
+        return 0; // Error
+    }
+}
+void pass_info(GameState state)
+{
+    for (int i = 0; i < 100; i++)
+    {
+        aliens[i] = state.aliens[i];
+    }
+    for (int i = 0; i < 100; i++)
+    {
+        bullets[i] = state.bullets[i];
+    }
+    player = state.player;
+    score = state.score;
+}
+
+// Funciones que controlan los high scores
+
+void add_new_score(int new_score)
+{
+    // Buscar la posición correcta para el nuevo puntaje
+    for (int i = 0; i < MAX_HIGH_SCORES; i++)
+    {
+        if (new_score > high_scores[i])
+        {
+            // Desplazar puntajes más bajos hacia abajo
+            for (int j = MAX_HIGH_SCORES - 1; j > i; j--)
+            {
+                high_scores[j] = high_scores[j - 1];
+            }
+            // Insertar el nuevo puntaje en la posición correcta
+            high_scores[i] = new_score;
+            return; // Salir de la función después de insertar el nuevo puntaje
+        }
+    }
+}
+
+void save_high_scores(const char *filename)
+{
+    FILE *file = fopen(filename, "w");
+    if (file == NULL)
+    {
+        perror("Error al abrir el archivo para guardar puntajes");
+        return;
+    }
+    for (int i = 0; i < MAX_HIGH_SCORES; i++)
+    {
+        fprintf(file, "%d\n", high_scores[i]);
+    }
+    fclose(file);
+}
+
+void load_high_scores(const char *filename)
+{
+    FILE *file = fopen(filename, "r");
+    if (file == NULL)
+    {
+        perror("Error al abrir el archivo para cargar puntajes");
+        return;
+    }
+    for (int i = 0; i < MAX_HIGH_SCORES; i++)
+    {
+        if (fscanf(file, "%d", &high_scores[i]) != 1)
+        {
+            high_scores[i] = 0; // Si no hay más datos, inicializar a 0
+        }
+    }
+    fclose(file);
+}
+
+>>>>>>> Stashed changes
 void *development_game(void *args)
 {
 
@@ -316,9 +529,14 @@ void *development_game(void *args)
 
         if (START)
         {
+<<<<<<< Updated upstream
             // init_game();
             //  draw_logo(h, w);
             //  dibujar la pantalla de inicio
+=======
+            load_high_scores("high_scores.txt");
+            high_score = high_scores[0];
+>>>>>>> Stashed changes
         }
         else if (RUN)
         {
@@ -352,8 +570,19 @@ void *development_game(void *args)
         }
         else if (GAME_OVER)
         {
-
             draw_game_over();
+            add_new_score(score);
+            save_high_scores("high_scores.txt");
+        }
+        else if (PAUSE)
+        {
+            draw_pause();
+            add_new_score(score);
+            save_high_scores("high_scores.txt");
+        }
+        else if (SEE_SCORES)
+        {
+            draw_high_scores(high_scores, 10);
         }
 
         unlock_master_mutex;
@@ -446,22 +675,26 @@ void *input_handler(void *args)
             if (ch == KEY_DOWN)
                 menu_item++;
 
-            if (menu_item >= 2)
-                menu_item = 2;
+            if (menu_item >= 3)
+                menu_item = 3;
             if (menu_item <= 0)
                 menu_item = 0;
 
             draw_logo(h, w);
 
-            int select_start_game = menu_item == 0 ? 0 : 1;
-            mvprintw(h / 2 - logo_h_size + 9, w / 2 - str_len(item_start_game[select_start_game]) / 2, item_start_game[select_start_game]);
+            int select_start_new_game = menu_item == 0 ? 0 : 1;
+            mvprintw(h / 2 - logo_h_size + 9, w / 2 - str_len(item_start_new_game[select_start_new_game]) / 2, item_start_new_game[select_start_new_game]);
 
-            // Item info
-            int select_info = menu_item == 1 ? 0 : 1;
-            mvprintw(h / 2 - logo_h_size + 11, w / 2 - str_len(item_info[select_info]) / 2, item_info[select_info]);
+            // Item saved game
+            int select_start_saved_game = menu_item == 1 ? 0 : 1;
+            mvprintw(h / 2 - logo_h_size + 11, w / 2 - str_len(item_start_saved_game[select_start_saved_game]) / 2, item_start_saved_game[select_start_saved_game]);
+
+            // Item best scores
+            int select_best_scores = menu_item == 2 ? 0 : 1;
+            mvprintw(h / 2 - logo_h_size + 12, w / 2 - str_len(item_best_scores[select_best_scores]) / 2, item_best_scores[select_best_scores]);
 
             // Item exit
-            int select_exit = menu_item == 2 ? 0 : 1;
+            int select_exit = menu_item == 3 ? 0 : 1;
             mvprintw(h / 2 - logo_h_size + 13, w / 2 - str_len(item_exit[select_exit]) / 2, item_exit[select_exit]);
 
             attron(COLOR_PAIR(1));
@@ -475,19 +708,29 @@ void *input_handler(void *args)
                 {
                 case 0:
                     actual_state = run;
+<<<<<<< Updated upstream
                     // init_game();
+=======
+>>>>>>> Stashed changes
                     break;
-                case 1:
-                    actual_state = info;
+                case 1: // Cargar partida guardada
+                    int load = load_game(&game_state);
+                    if (load)
+                    {
+                        pass_info(game_state);
+                    }
+                    actual_state = run; 
                     break;
                 case 2:
+                    actual_state = see_scores;
+                case 3:
                     actual_state = out;
                     break;
                 }
             }
 
             if (ch == 'q')
-                actual_state = start;
+                actual_state = pause_game;
 
             // Get key pressed
             ch = wgetch(stdscr);
@@ -522,7 +765,7 @@ void *input_handler(void *args)
                 shoot();
                 break;
             case 'q':
-                actual_state = game_over;
+                actual_state = PAUSE;
                 break;
             }
         }
@@ -537,6 +780,41 @@ void *input_handler(void *args)
             else if (ch == 'q')
             {
                 actual_state = out;
+<<<<<<< Updated upstream
+=======
+            }
+        }
+
+        else if (PAUSE)
+        {
+            ch = getch();
+            switch (ch)
+            {
+            case 'q':
+                actual_state = out;
+                break;
+            case 's':
+                actual_state = start;
+                break;
+            case 'c': // Salir y guardar
+                save_game(&game_state);
+                actual_state = out;
+                break;
+            case 'x': // Guardar y volver a inicio
+                save_game(&game_state);
+                actual_state = start;
+                break;
+            }
+        }
+        else if (see_scores)
+        {
+            ch = getch();
+            switch (ch)
+            {
+            case 's':
+                actual_state = start;
+                break;
+>>>>>>> Stashed changes
             }
         }
 
