@@ -208,49 +208,56 @@ void load_high_scores(const char *filename)
 
 // Funciones para guardar y cargar juego
 
-void save_game(GameState *state)
-{
-    FILE *file = fopen("saved_game.bin", "wb");
-    if (file != NULL)
-    {
-        fwrite(state, sizeof(GameState), 1, file);
-        fclose(file);
+void save_game(const char *filename) {
+    FILE *file = fopen(filename, "wb");
+    if (file == NULL) {
+        printf("Error al abrir el archivo para guardar la partida.\n");
+        return;
     }
-    else
-    {
-        printf("Error al guardar la partida.\n");
-    }
+
+    // Guarda las balas
+    fwrite(bullets, sizeof(Bullets), NUMBER_BULLETS, file);
+
+    // Guarda los aliens
+    fwrite(aliens, sizeof(Alien), NUMBER_ALIENS, file);
+
+    // Guarda el jugador
+    fwrite(&player, sizeof(Player), 1, file);
+
+    fclose(file);
+    printf("Partida guardada exitosamente.\n");
 }
 
-int load_game(GameState *state)
-{
-    FILE *file = fopen("saved_game.bin", "rb");
-    if (file != NULL)
-    {
-        fread(state, sizeof(GameState), 1, file);
-        fclose(file);
-        return 1; // Éxito
+void load_game(const char *filename) {
+    FILE *file = fopen(filename, "rb");
+    if (file == NULL) {
+        printf("Error al abrir el archivo para cargar la partida.\n");
+        return;
     }
-    else
-    {
-        printf("No se pudo cargar la partida guardada.\n");
-        return 0; // Error
-    }
+
+    // Carga las balas
+    fread(bullets, sizeof(Bullets), NUMBER_BULLETS, file);
+
+    // Carga los aliens
+    fread(aliens, sizeof(Alien), NUMBER_ALIENS, file);
+
+    // Carga el jugador
+    fread(&player, sizeof(Player), 1, file);
+
+    fclose(file);
+    printf("Partida cargada exitosamente.\n");
 }
 
-void pass_info(GameState state)
-{
-    for (int i = 0; i < 100; i++)
-    {
-        aliens[i] = state.aliens[i];
-    }
-    for (int i = 0; i < 100; i++)
-    {
-        bullets[i] = state.bullets[i];
-    }
-    player = state.player;
-    score = state.score;
-}
+
+
+
+
+
+
+
+
+
+
 
 // Inicializa el juego, reseteando variables y posicionando al jugador y elementos en sus estados iniciales
 void init_game()
@@ -294,21 +301,6 @@ void draw_aliens()
             mvprintw(aliens[i].y, aliens[i].x, "/\"\\");
             attroff(COLOR_PAIR(4));
         }
-    }
-}
-
-void draw_borders()
-{
-    for (int i = 0; i < COLS; i++)
-    {
-        mvprintw(0, i, "#");
-        mvprintw(2, i, "-");
-        mvprintw(LINES - 1, i, "#");
-    }
-    for (int i = 0; i < LINES; i++)
-    {
-        mvprintw(i, 0, "#");
-        mvprintw(i, COLS - 1, "#");
     }
 }
 
@@ -440,12 +432,11 @@ void *development_game(void *arg)
             }
 
             clear();
-            draw_borders();
             draw_player();
 
             mvprintw(1, 2, "HP: %d", player.lives);
-            mvprintw(1, 10, "Score: %d", score);
-            mvprintw(1, 20, "High Score: %d", high_score);
+            mvprintw(1, COLS/2-2, "Score: %d", score);
+            mvprintw(1, COLS-17, "High Score: %d", high_score);
 
             draw_bullets();
             draw_aliens();
@@ -508,12 +499,9 @@ void *input_handler(void *arg)
 
             else if (ch == 'l')
             {
-                int load = load_game(&game_state);
-                if (load)
-                {
-                    pass_info(game_state);
-                }
                 actual_state = run;
+                init_game();
+                load_game("saved_game.dat");                
             }
             else if (ch == 'b')
             {
@@ -572,11 +560,11 @@ void *input_handler(void *arg)
                 actual_state = start;
                 break;
             case 'c':
-                save_game(&game_state);
+                save_game("saved_game.dat");
                 actual_state = out;
                 break;
             case 'x': // Guardar y volver a inicio
-                save_game(&game_state);
+                save_game("saved_game.dat");
                 actual_state = start;
                 break;
             }
