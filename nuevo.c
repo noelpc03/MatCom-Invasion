@@ -3,13 +3,16 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <time.h>
+#include <stdio.h>
+#include <string.h>
+#include <dirent.h>
+#include <sys/stat.h>
 
 #define DELAY 30000 // Tiempo de espera entre actualizaciones en microsegundos
 
 pthread_mutex_t master_mutex = PTHREAD_MUTEX_INITIALIZER;
 #define lock_master_mutex pthread_mutex_lock(&master_mutex)
 #define unlock_master_mutex pthread_mutex_unlock(&master_mutex)
-
 
 typedef enum
 {
@@ -19,7 +22,10 @@ typedef enum
     out,
     info,
     pause_game,
-    see_scores
+    see_scores,
+    error,
+    select_game,
+    saving_error
 } state;
 
 state actual_state = start;
@@ -30,6 +36,9 @@ state actual_state = start;
 #define GAME_OVER (actual_state == game_over)
 #define PAUSE (actual_state == pause_game)
 #define SEE_SCORES (actual_state == see_scores)
+#define ERROR (actual_state == error)
+#define SELECT_GAME (actual_state == select_game)
+#define SAVING_ERROR (actual_state == saving_error)
 
 typedef struct
 {
@@ -46,14 +55,6 @@ typedef struct
     int x, y, lives;
 } Player;
 
-typedef struct
-{
-    Alien aliens[100];    // Estructura que representa los aliens
-    Bullets bullets[100]; // Estructura que representa las balas
-    int score;
-    Player player;
-} GameState;
-
 #define NUMBER_BULLETS 100
 #define NUMBER_ALIENS 100
 Bullets bullets[NUMBER_BULLETS];
@@ -67,8 +68,9 @@ int count = 0;
 #define vk_enter 10
 #define MAX_HIGH_SCORES 10
 int high_scores[MAX_HIGH_SCORES] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-GameState game_state;
 int h, w;
+bool loaded = false;
+bool saved = false;
 
 const char *menu_logo[6] = {
 
@@ -193,7 +195,6 @@ void load_high_scores(const char *filename)
     FILE *file = fopen(filename, "r");
     if (file == NULL)
     {
-        perror("Error al abrir el archivo para cargar puntajes");
         return;
     }
     for (int i = 0; i < MAX_HIGH_SCORES; i++)
@@ -208,9 +209,11 @@ void load_high_scores(const char *filename)
 
 // Funciones para guardar y cargar juego
 
-void save_game(const char *filename) {
+void save_game(const char *filename)
+{
     FILE *file = fopen(filename, "wb");
-    if (file == NULL) {
+    if (file == NULL)
+    {
         printf("Error al abrir el archivo para guardar la partida.\n");
         return;
     }
@@ -225,12 +228,13 @@ void save_game(const char *filename) {
     fwrite(&player, sizeof(Player), 1, file);
 
     fclose(file);
-    printf("Partida guardada exitosamente.\n");
 }
 
-void load_game(const char *filename) {
+void load_game(const char *filename)
+{
     FILE *file = fopen(filename, "rb");
-    if (file == NULL) {
+    if (file == NULL)
+    {
         printf("Error al abrir el archivo para cargar la partida.\n");
         return;
     }
@@ -245,7 +249,172 @@ void load_game(const char *filename) {
     fread(&player, sizeof(Player), 1, file);
 
     fclose(file);
-    printf("Partida cargada exitosamente.\n");
+    loaded = true;
+}
+
+
+
+
+// Función para detectar si estamos en WSL
+int isWSL() {
+    FILE *file = fopen("/proc/version", "r");
+    if (file == NULL) {
+        return 0;
+    }
+
+    char buffer[256];
+    fgets(buffer, sizeof(buffer), file);
+    fclose(file);
+
+    return strstr(buffer, "Microsoft") != NULL;
+}
+
+// Función para listar dispositivos USB en Arch Linux usando `stat()` en lugar de `d_type`
+void listUSBDevicesArch(char usbDevices[][256], int *numDevices) {
+    const char *usbMountPath = "/run/media";
+    DIR *dir = opendir(usbMountPath);
+    if (dir == NULL) {
+        printf("No se puede abrir el directorio %s\n", usbMountPath);
+        return;
+    }
+
+    struct dirent *entry;
+    *numDevices = 0;
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
+            char userPath[256];
+            snprintf(userPath, sizeof(userPath), "%s/%s", usbMountPath, entry->d_name);
+            
+            DIR *userDir = opendir(userPath);
+            if (userDir != NULL) {
+                struct dirent *usbEntry;
+                while ((usbEntry = readdir(userDir)) != NULL) {
+                    if (strcmp(usbEntry->d_name, ".") != 0 && strcmp(usbEntry->d_name, "..") != 0) {
+                        char fullPath[512];
+                        snprintf(fullPath, sizeof(fullPath), "%s/%s", userPath, usbEntry->d_name);
+
+                        struct stat fileStat;
+                        if (stat(fullPath, &fileStat) == 0 && S_ISDIR(fileStat.st_mode)) {
+                            snprintf(usbDevices[*numDevices], 256, "%s", fullPath);
+                            (*numDevices)++;
+                        }
+                    }
+                }
+                closedir(userDir);
+            }
+        }
+    }
+    closedir(dir);
+}
+
+// Función para listar dispositivos USB en WSL usando `stat()` en lugar de `d_type`
+void listUSBDevicesWSL(char usbDevices[][256], int *numDevices) {
+    const char *mntPath = "/mnt";
+    DIR *dir = opendir(mntPath);
+    if (dir == NULL) {
+        printf("No se puede abrir el directorio %s\n", mntPath);
+        return;
+    }
+
+    struct dirent *entry;
+    *numDevices = 0;
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (strlen(entry->d_name) == 1 && entry->d_name[0] >= 'a' && entry->d_name[0] <= 'z') {
+            char devicePath[256];
+            snprintf(devicePath, sizeof(devicePath), "%s/%s", mntPath, entry->d_name);
+
+            struct stat fileStat;
+            if (stat(devicePath, &fileStat) == 0 && S_ISDIR(fileStat.st_mode)) {
+                snprintf(usbDevices[*numDevices], 256, "%s", devicePath);
+                (*numDevices)++;
+            }
+        }
+    }
+
+    closedir(dir);
+}
+
+// Función principal para listar dispositivos USB dependiendo del entorno
+void listUSBDevices(char usbDevices[][256], int *numDevices) {
+    if (isWSL()) {
+        listUSBDevicesWSL(usbDevices, numDevices);
+    } else {
+        listUSBDevicesArch(usbDevices, numDevices);
+    }
+}
+
+// Funciones de guardado y carga
+void saveGameToUSB() {
+    char usbDevices[10][256];
+    int numDevices = 0;
+
+    listUSBDevices(usbDevices, &numDevices);
+
+    if (numDevices == 0) {
+        printf("No se detectaron dispositivos USB.\n");
+        return;
+    }
+
+    // Usa la primera USB disponible
+    char filePath[256];
+    snprintf(filePath, sizeof(filePath), "%s/save_game.dat", usbDevices[0]);
+
+    FILE *file = fopen(filePath, "wb");
+    if (file == NULL) {
+        printf("Error al abrir el archivo para guardar en la USB.\n");
+        return;
+    }
+
+    // Guardar los datos del juego
+    fwrite(bullets, sizeof(Bullets), NUMBER_BULLETS, file);
+    fwrite(aliens, sizeof(Alien), NUMBER_ALIENS, file);
+    fwrite(&player, sizeof(Player), 1, file);
+
+    fclose(file);
+    printf("Partida guardada exitosamente en %s\n", filePath);
+    saved = true;
+}
+
+void loadGameFromUSB() {
+    char usbDevices[10][256];
+    int numDevices = 0;
+
+    listUSBDevices(usbDevices, &numDevices);
+
+    if (numDevices == 0) {
+        printf("No se detectaron dispositivos USB.\n");
+        return;
+    }
+
+    // Revisa en cada USB conectada si existe el archivo de guardado
+    for (int i = 0; i < numDevices; i++) {
+        char filePath[256];
+        snprintf(filePath, sizeof(filePath), "%s/save_game.dat", usbDevices[i]);
+
+        // Verifica si el archivo existe
+        struct stat buffer;
+        if (stat(filePath, &buffer) == 0) {
+            // Archivo encontrado, cargar partida
+            FILE *file = fopen(filePath, "rb");
+            if (file == NULL) {
+                printf("Error al abrir el archivo %s para cargar la partida.\n", filePath);
+                continue;
+            }
+
+            fread(bullets, sizeof(Bullets), NUMBER_BULLETS, file);
+            fread(aliens, sizeof(Alien), NUMBER_ALIENS, file);
+            fread(&player, sizeof(Player), 1, file);
+
+            fclose(file);
+            printf("Partida cargada exitosamente desde %s\n", filePath);
+            loaded = true;
+            return;
+        }
+    }
+
+    printf("No se encontró el archivo de guardado en ninguna USB.\n");
 }
 
 
@@ -357,16 +526,62 @@ void draw_pause()
 {
     clear();
     attron(COLOR_PAIR(5));
-    mvprintw(LINES / 2 - 2, COLS / 2 - 10, "Exit Menu");
+    mvprintw(LINES / 2 - 2, COLS / 2 - 10, "Pause");
     attroff(COLOR_PAIR(5));
 
     mvprintw(LINES / 2, COLS / 2 - 10, "Press 's' to Return to Start Screen");
-    mvprintw(LINES / 2 + 2, COLS / 2 - 10, "Press 'q' to Quit");
-    mvprintw(LINES / 2 + 4, COLS / 2 - 10, "Press 'c' to Save and Quit");
-    mvprintw(LINES / 2 + 6, COLS / 2 - 10, "Score: %d", score);
+    mvprintw(LINES / 2 + 1, COLS / 2 - 10, "Press 'q' to Quit");
+    mvprintw(LINES / 2 + 2, COLS / 2 - 10, "Press 'c' to Save and Quit");
+    mvprintw(LINES / 2 + 3, COLS / 2 - 10, "Press 'x' to Save and Return to Start Screen");
+    mvprintw(LINES / 2 + 4, COLS / 2 - 10, "Press 'v' to Save in USB and Return to Start Screen");
+    mvprintw(LINES / 2 + 5, COLS / 2 - 10, "Press 'b' to Save in USB and Quit");
+    mvprintw(LINES / 2 + 6, COLS / 2 - 10, "Press 'u' to Continue Game");
+    mvprintw(LINES / 2 + 7, COLS / 2 - 10, "Score: %d", score);
     mvprintw(LINES / 2 + 8, COLS / 2 - 10, "High Score: %d", high_score);
     refresh();
 }
+
+void draw_load_error()
+{
+    clear();
+    attron(COLOR_PAIR(4));
+    mvprintw(LINES / 2 - 2, COLS / 2 - 10, "Error");
+    attroff(COLOR_PAIR(4));
+    mvprintw(LINES / 2 - 1, COLS / 2 - 10, "Error trying to load game. It seems there are no saved files.");
+    mvprintw(LINES / 2 + 1, COLS / 2 - 10, "Press 's' to Return to Start Screen");
+    mvprintw(LINES / 2 + 2, COLS / 2 - 10, "Press 'q' to Quit");
+    refresh();
+}
+
+void draw_select_screen()
+{
+    clear();
+    attron(COLOR_PAIR(1));
+    mvprintw(LINES / 2 - 2, COLS / 2 - 10, "Select Game");
+
+    attroff(COLOR_PAIR(1));
+    mvprintw(LINES / 2, COLS / 2 - 10, "Press 'p' to Load Saved Game");
+    mvprintw(LINES / 2 + 1, COLS / 2 - 10, "Press 'u' to Load Game from USB");
+    mvprintw(LINES / 2 + 2, COLS / 2 - 10, "Press 's' to Return to Start Screen");
+    mvprintw(LINES / 2 + 3, COLS / 2 - 10, "Press 'q' to Quit");
+    mvprintw(LINES / 2 + 4, COLS / 2 - 10, "High Score: %d", high_score);
+
+    refresh();
+}
+
+void draw_saving_error()
+{
+    clear();
+    attron(COLOR_PAIR(4));
+    mvprintw(LINES / 2 - 2, COLS / 2 - 10, "Error");
+    attroff(COLOR_PAIR(4));
+    mvprintw(LINES / 2 - 1, COLS / 2 - 10, "Error trying to save game. It was not possible to find the usb.");
+    mvprintw(LINES / 2 + 1, COLS / 2 - 10, "Press 's' to Return to Start Screen");
+    mvprintw(LINES / 2 + 2, COLS / 2 - 10, "Press 'q' to Quit");
+    mvprintw(LINES / 2 + 3, COLS / 2 - 10, "Press 'u' to go back to Exit Menu");
+    refresh();
+}
+
 
 void draw_high_scores(int high_scores[], int num_scores)
 {
@@ -435,8 +650,8 @@ void *development_game(void *arg)
             draw_player();
 
             mvprintw(1, 2, "HP: %d", player.lives);
-            mvprintw(1, COLS/2-2, "Score: %d", score);
-            mvprintw(1, COLS-17, "High Score: %d", high_score);
+            mvprintw(1, COLS / 2 - 2, "Score: %d", score);
+            mvprintw(1, COLS - 17, "High Score: %d", high_score);
 
             draw_bullets();
             draw_aliens();
@@ -466,6 +681,18 @@ void *development_game(void *arg)
         else if (SEE_SCORES)
         {
             draw_high_scores(high_scores, 10);
+        }
+        else if (SELECT_GAME)
+        {
+            draw_select_screen();
+        }
+        else if (ERROR)
+        {
+            draw_load_error();
+        }
+        else if (SAVING_ERROR)
+        {
+            draw_saving_error();
         }
 
         unlock_master_mutex;
@@ -499,16 +726,12 @@ void *input_handler(void *arg)
 
             else if (ch == 'l')
             {
-                actual_state = run;
-                init_game();
-                load_game("saved_game.dat");                
+                actual_state = select_game;
             }
             else if (ch == 'b')
             {
                 actual_state = see_scores;
             }
-            
-
         }
         else if (RUN)
         {
@@ -559,14 +782,70 @@ void *input_handler(void *arg)
             case 's':
                 actual_state = start;
                 break;
-            case 'c':
+            case 'c': // Guardar en memoria y salir 
                 save_game("saved_game.dat");
                 actual_state = out;
                 break;
-            case 'x': // Guardar y volver a inicio
+            case 'x': // Guardar en memoria y volver a inicio
                 save_game("saved_game.dat");
                 actual_state = start;
                 break;
+            case 'v': // Guardar en USB y volver a inicio
+                saveGameToUSB();
+                if(!saved)
+                {
+                    actual_state = saving_error;
+                }
+                else 
+                {
+                    actual_state = start;
+                    saved = false;
+                }
+                break;
+            case 'b': // Guardar en USB y salir
+                saveGameToUSB();
+                if(!saved)
+                {
+                    actual_state = saving_error;
+                }
+                else 
+                {
+                    actual_state = out;
+                    saved = false;
+                }
+                break;
+            case 'u': // Volver al juego
+                actual_state = run;
+                break;
+
+
+
+            }
+        }
+        else if (ERROR)
+        {
+            if (ch == 's')
+            {
+                actual_state = start;
+            }
+            else if (ch == 'q')
+            {
+                actual_state = out;
+            }
+        }
+        else if (SAVING_ERROR)
+        {
+            if (ch == 's')
+            {
+                actual_state = start;
+            }
+            else if (ch == 'q')
+            {
+                actual_state = out;
+            }
+            else if (ch == 'u')
+            {
+                actual_state = pause_game;
             }
         }
         else if (SEE_SCORES)
@@ -574,6 +853,47 @@ void *input_handler(void *arg)
             if (ch == 's')
             {
                 actual_state = start;
+            }
+        }
+        else if (SELECT_GAME)
+        {
+            if (ch == 's')
+            {
+                actual_state = start;
+            }
+            if (ch == 'p') // Cargar partida desde la memoria principal
+            {
+                actual_state = run;
+                init_game();
+                load_game("saved_game.dat");
+                if (!loaded)
+                {
+                    actual_state = error;
+                }
+                else
+                {
+                    loaded = false;
+                }
+            }
+            if (ch == 'q')
+            {
+                actual_state = out;
+            }
+            if (ch == 'u') // Cargar juego desde una usb
+            {
+                actual_state = run;
+                init_game();
+                loadGameFromUSB();
+                if (!loaded)
+                {
+                    actual_state = error;
+                }
+                else
+                {
+                    loaded = false;
+                }
+
+
             }
         }
 
@@ -620,7 +940,7 @@ void shoot()
     {
         if (!bullets[i].active)
         {
-            bullets[i].x = player.x+2;
+            bullets[i].x = player.x + 2;
             bullets[i].y = player.y - 1;
             bullets[i].active = 1;
             break;
