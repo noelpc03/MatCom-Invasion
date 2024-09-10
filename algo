@@ -1,0 +1,7 @@
+
+
+sudo -i 
+cd /mnt
+ls
+si no se lee le contenido de las unidades c,d,e regresar al inicio y poner sudo mount -t drvfs D: /mnt/d
+df -h (comprobar el estado de las unidades, ya debe estar resuelto)

@@ -8,9 +8,10 @@
 #include <dirent.h>
 #include <ctype.h>
 #include <sys/stat.h>
+#include <time.h>
 
 #pragma region GLOBAL VARIABLES
-#define DELAY 60000 // Tiempo de espera entre actualizaciones en microsegundos
+#define DELAY 90000 // Tiempo de espera entre actualizaciones en microsegundos
 
 pthread_mutex_t master_mutex = PTHREAD_MUTEX_INITIALIZER;
 #define lock_master_mutex pthread_mutex_lock(&master_mutex)
@@ -68,6 +69,7 @@ typedef struct
 {
     int score;
     char name[20];
+    char date[40];
 } Score;
 
 #define NUMBER_BULLETS 10
@@ -89,8 +91,6 @@ int menu_pause = 0;
 Score score;
 int high_score = 0;
 int count = 0;
-bool loaded = false;
-bool saved = false;
 
 
 #pragma endregion
@@ -194,7 +194,7 @@ void draw_logo(int h, int w)
     attroff(COLOR_PAIR(1));
 }
 
-void draw_bullets()
+void draw_bullets_player()
 {
     for (int i = 0; i < NUMBER_BULLETS + 5; i++)
     {
@@ -258,7 +258,7 @@ void draw_start_screen(int *free)
 
     if (*free)
     {
-        snprintf(score.name, sizeof(score.name), "                                                                              ");
+        snprintf(score.name, sizeof(score.name), "                   ");
         *free = 0;
     }
     // attron(COLOR_PAIR(6));
@@ -451,7 +451,8 @@ void draw_high_scores()
                 attron(COLOR_PAIR(8)); // Bronce para el resto
             }
             mvprintw(LINES / 2 + i - 4, COLS / 2 - 10, "%d. %d", i + 1, high_scores[i].score);
-            mvprintw(LINES / 2 + i - 4, COLS / 2 + 2, "%s", high_scores[i].name);
+            mvprintw(LINES / 2 + i - 4, COLS / 2 + 2, "%s ", high_scores[i].name);
+            mvprintw(LINES / 2 + i - 4, COLS / 2 + 12, "%s ", high_scores[i].date);
             attroff(COLOR_PAIR(8));
             attroff(COLOR_PAIR(7));
             attroff(COLOR_PAIR(6));
@@ -467,6 +468,13 @@ void draw_high_scores()
 #pragma region SCORES
 void add_new_score(Score new_score)
 {
+    // Obtener la fecha actual
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+    snprintf(new_score.date, sizeof(new_score.date), "%02d-%02d-%04d_%02d:%02d:%02d",
+             tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900,
+             tm.tm_hour, tm.tm_min, tm.tm_sec);
+
     // Buscar la posición correcta para el nuevo puntaje
     for (int i = 0; i < MAX_HIGH_SCORES; i++)
     {
@@ -478,10 +486,12 @@ void add_new_score(Score new_score)
             {
                 high_scores[j].score = high_scores[j - 1].score;
                 strcpy(high_scores[j].name, high_scores[j - 1].name);
+                strcpy(high_scores[j].date, high_scores[j - 1].date);
             }
             // Insertar el nuevo puntaje en la posición correcta
             high_scores[i].score = new_score.score;
             strcpy(high_scores[i].name, new_score.name);
+            strcpy(high_scores[i].date, new_score.date);
 
             return; // Salir de la función después de insertar el nuevo puntaje
         }
@@ -498,8 +508,9 @@ void save_high_scores(const char *filename)
     }
     for (int i = 0; i < MAX_HIGH_SCORES; i++)
     {
-        fprintf(file, "%d\n", high_scores[i].score);
-        fprintf(file, "%s\n", high_scores[i].name);
+        fprintf(file, "%d\n", high_scores[i].score); // Guardar el score
+        fprintf(file, "%s\n", high_scores[i].name); // Guardar el nombre
+        fprintf(file, "%s\n", high_scores[i].date); // Guardar la fecha
     }
     fclose(file);
 }
@@ -518,10 +529,16 @@ void load_high_scores(const char *filename)
         {
             high_scores[i].score = 0; // Si no hay más datos, inicializar a 0
             snprintf(high_scores[i].name, sizeof(high_scores[i].name), "PlayerX");
+            snprintf(high_scores[i].date, sizeof(high_scores[i].date), "N/A");
         }
         else if (fscanf(file, "%s", high_scores[i].name) != 1)
         {
             snprintf(high_scores[i].name, sizeof(high_scores[i].name), "PlayerX");
+            snprintf(high_scores[i].date, sizeof(high_scores[i].date), "N/A");
+        }
+        else if (fscanf(file, "%s", high_scores[i].date) != 1)
+        {
+            snprintf(high_scores[i].date, sizeof(high_scores[i].date), "N/A");
         }
     }
     fclose(file);
@@ -852,13 +869,20 @@ void update_aliens()
 {
     int number_aliens_active = 0;
 
+    // if (aliens[5].active )
+    // {
+    //     aliens[5].bullet_alien.active=1;
+    //     aliens[5].bullet_alien.y +=2;
+    //     aliens[5].bullet_alien.x=aliens[5].x;
+    // }
+
     for (int i = 0; i < NUMBER_ALIENS + 5; i++)
     {
 
         if (aliens[i].active)
         {
             number_aliens_active += 1;
-            aliens[i].y++;
+            aliens[i].y+= (i%4)+1;
             if (aliens[i].y >= LINES - 1)
             {
                 aliens[i].active = 0;
@@ -1005,12 +1029,12 @@ void *development_game(void *arg)
         {
             mask = 0;
             draw_start_screen(&free);
-            load_high_scores("high_scores.txt");
+            load_high_scores("/home/jabel/Proyecto_SO/MatCom-Invasion/high_scores.txt");
             high_score = high_scores[0].score;
         }
         else if (RUN)
         {
-            
+
             free = 1;
             update_bullets();
 
@@ -1018,6 +1042,7 @@ void *development_game(void *arg)
             {
                 update_aliens();
                 update_frames();
+                // update_bullets_enemy();
             }
 
             check_collisions();
@@ -1039,7 +1064,8 @@ void *development_game(void *arg)
             mvprintw(1, COLS / 2 - 2, "Score: %d", score.score);
             mvprintw(1, COLS - 17, "High Score: %d", high_score);
 
-            draw_bullets();
+            draw_bullets_player();
+            // draw_bullets_enemy();
             draw_aliens();
 
             refresh();
@@ -1053,7 +1079,7 @@ void *development_game(void *arg)
             if (mask == 1)
             {
                 add_new_score(score);
-                save_high_scores("high_scores.txt");
+                save_high_scores("/home/jabel/Proyecto_SO/MatCom-Invasion/high_scores.txt");
             }
         }
         else if (PAUSE)
@@ -1064,7 +1090,7 @@ void *development_game(void *arg)
             if (mask == 2)
             {
                 add_new_score(score);
-                save_high_scores("high_scores.txt");
+                save_high_scores("/home/jabel/Proyecto_SO/MatCom-Invasion/high_scores.txt");
             }
         }
         else if (SEE_SCORES)
@@ -1447,7 +1473,6 @@ int main()
     timeout(0);
     start_color();
 
-    
     init_color(COLOR_GOLD, 700, 550, 0);     // Oro
     init_color(COLOR_SILVER, 800, 800, 800); // Plata
     init_color(COLOR_BRONZE, 600, 400, 200); // Bronce
@@ -1461,6 +1486,7 @@ int main()
     init_pair(7, COLOR_SILVER, COLOR_BLACK);
     init_pair(8, COLOR_BRONZE, COLOR_BLACK);
 
+    
     pthread_t game_thread, input_thread;
 
     pthread_create(&game_thread, NULL, development_game, NULL);
@@ -1469,7 +1495,6 @@ int main()
     pthread_join(game_thread, NULL);
     pthread_join(input_thread, NULL);
 
-    
     endwin();
     pthread_mutex_destroy(&master_mutex);
 
