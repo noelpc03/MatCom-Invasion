@@ -183,30 +183,6 @@ Usado para asignación eficiente de recursos:
 - Gestión de aliens activos
 - Optimiza el uso de memoria del juego
 
-## 🐛 Solución de Problemas
-
-### El juego no compila
-- Verifica que tengas instaladas todas las dependencias
-- Asegúrate de tener permisos de escritura en el directorio
-
-### Errores de ncurses
-```bash
-# Reinstalar ncurses
-sudo apt-get install --reinstall libncurses5-dev
-```
-
-### La terminal se ve mal después de salir
-```bash
-# Resetear la terminal
-reset
-```
-
-### Error: "No such file or directory" al ejecutar
-```bash
-# Asegúrate de que la carpeta data existe
-mkdir -p data
-```
-
 ## 👥 Autor
 
 Proyecto desarrollado como parte del curso de Sistemas Operativos en la Facultad de Matemática y Computación, Universidad de La Habana.
