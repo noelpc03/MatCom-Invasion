@@ -1,0 +1,24 @@
+# Build files
+build/
+bin/
+*.o
+*.out
+
+# Game data (optional - uncomment if you don't want to track saves)
+# data/saved_game.dat
+# data/high_scores.txt
+
+# Backup files
+*.old
+*.bak
+*~
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db

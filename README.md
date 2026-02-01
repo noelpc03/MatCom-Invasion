@@ -1,16 +1,220 @@
-# Matcom Invasion
-## Descripción
-Los cielos oscuros sobre la Tierra anuncian una amenaza inminente: una invasión alienígena está en marcha. Los enemigos del espacio exterior han lanzado una ofensiva contra la Facultad de Matemática y Computación de la Universidad de la Habana, y la humanidad depende de tus habilidades para repeler la invasión. Te embarcarás en una peligrosa misión para defender nuestro hogar de los invasores alienígenas, usando tus habilidades tácticas y de combate para asegurar la supervivencia de la humanidad.
-## Objetivo
-Desarrollar un juego de estilo arcade en C, similar al clásico "Alien Invaders", donde el jugador controla una nave espacial para defender la Tierra de una invasión alienígena. Este proyecto tiene como objetivo principal poner en práctica conceptos fundamentales de la asignatura Sistema Operativo, como la programación orientada a eventos, la concurrencia, la gestión de la memoria y el diseño de estrategias de planificación. Además, se busca familiarizar al estudiante con el trabajo en consola mediante un entorno de desarrollo de una máquina virtual con sistema operativo Arch Linux.
-## Elementos Teóricos
+# MatCom Invasion 🚀👾
+
+Un juego de invasión espacial tipo **Space Invaders** desarrollado en C usando la biblioteca ncurses para interfaz de terminal.
+
+## 📋 Descripción
+
+Los cielos oscuros sobre la Tierra anuncian una amenaza inminente: una invasión alienígena está en marcha. Los enemigos del espacio exterior han lanzado una ofensiva contra la Facultad de Matemática y Computación de la Universidad de la Habana, y la humanidad depende de tus habilidades para repeler la invasión.
+
+MatCom Invasion es un juego arcade clásico donde controlas una nave espacial para defender la tierra de invasores alienígenas. Dispara a los enemigos, esquiva colisiones y alcanza el puntaje más alto.
+
+### Características
+
+- ✨ Interfaz de terminal con colores usando ncurses
+- 🎮 Sistema de jugador con 3 vidas
+- 👾 Múltiples tipos de enemigos alienígenas
+- 💥 Sistema de colisiones y disparos
+- 🏆 Tabla de puntajes altos (Top 10)
+- 💾 Sistema de guardado y carga de partidas
+- ⏸️ Menú de pausa con opciones de guardado
+- 🎯 Algoritmo LRU para gestión de frames de enemigos
+- 🧵 Arquitectura multihilo (concurrencia con pthread)
+
+## 🛠️ Requisitos
+
+### Dependencias
+
+- GCC (compilador de C)
+- Make
+- libncurses5-dev (biblioteca ncurses)
+- pthread (para multithreading)
+
+### Instalación de Dependencias
+
+#### Ubuntu/Debian
+```bash
+sudo apt-get update
+sudo apt-get install -y libncurses5-dev libncursesw5-dev gcc make
+```
+
+O simplemente usa:
+```bash
+make install-deps
+```
+
+#### Arch Linux
+```bash
+sudo pacman -S ncurses gcc make
+```
+
+#### Fedora
+```bash
+sudo dnf install ncurses-devel gcc make
+```
+
+## 🚀 Compilación y Ejecución
+
+### Compilar el juego
+```bash
+make
+```
+
+### Compilar y ejecutar directamente
+```bash
+make run
+```
+
+### Compilar versión de debug
+```bash
+make debug
+```
+
+### Compilar versión optimizada (release)
+```bash
+make release
+```
+
+## 🎮 Controles
+
+### Menú Principal
+- **↑/↓**: Navegar por las opciones
+- **Espacio**: Seleccionar opción
+- **Letras/Números**: Ingresar nombre de jugador
+
+### Durante el Juego
+- **A / ←**: Mover izquierda
+- **D / →**: Mover derecha
+- **W / ↑**: Mover arriba
+- **S / ↓**: Mover abajo
+- **Espacio**: Disparar
+- **Q**: Pausar juego
+
+### Menús (Pausa/Game Over)
+- **↑/↓**: Navegar opciones
+- **Espacio**: Seleccionar
+- **S**: Volver al menú principal (en pantalla de scores)
+
+## 📁 Estructura del Proyecto
+
+```
+MatCom-Invasion/
+├── src/               # Código fuente (.c)
+│   ├── main.c        # Punto de entrada
+│   ├── game.c        # Lógica del juego
+│   ├── draw.c        # Funciones de dibujo
+│   ├── input.c       # Manejo de entrada
+│   └── score.c       # Sistema de puntajes
+├── include/          # Archivos de cabecera (.h)
+│   ├── types.h       # Definiciones de tipos
+│   ├── config.h      # Configuraciones
+│   ├── game.h
+│   ├── draw.h
+│   ├── input.h
+│   └── score.h
+├── data/             # Datos del juego
+│   ├── high_scores.txt   # Puntajes altos
+│   └── saved_game.dat    # Partida guardada
+├── build/            # Archivos objeto (.o)
+├── bin/              # Ejecutable compilado
+├── Makefile          # Sistema de compilación
+└── README.md         # Este archivo
+```
+
+## 🎯 Opciones del Menú Principal
+
+1. **START NEW GAME**: Iniciar nueva partida
+2. **START SAVED GAME**: Cargar partida guardada
+3. **BEST SCORES**: Ver tabla de mejores puntajes
+4. **EXIT**: Salir del juego
+
+## 💾 Sistema de Guardado
+
+El juego guarda automáticamente:
+- **Puntajes altos**: Se guardan automáticamente al terminar cada partida
+- **Partida**: Puedes guardar tu progreso desde el menú de pausa
+
+Ubicaciones:
+- Puntajes: `data/high_scores.txt`
+- Partida guardada: `data/saved_game.dat`
+
+## 🏗️ Desarrollo
+
+### Limpiar archivos de compilación
+```bash
+make clean
+```
+
+### Limpieza completa
+```bash
+make distclean
+```
+
+### Ver ayuda del Makefile
+```bash
+make help
+```
+
+## 🔧 Configuración
+
+Puedes modificar la configuración del juego editando `include/config.h`:
+
+- `DELAY`: Velocidad del juego (microsegundos entre frames)
+- `NUMBER_BULLETS`: Máximo de balas simultáneas
+- `NUMBER_ALIENS`: Máximo de aliens simultáneos
+- `MAX_HIGH_SCORES`: Cantidad de puntajes a guardar
+
+## 📝 Conceptos Implementados
+
 ### Programación Orientada a Eventos
-La implementación del juego requerirá el uso de programación orientada a eventos para manejar las interacciones del jugador con el entorno del juego. Esto implica detectar eventos como la entrada del teclado y responder a ellos de manera apropiada, como mover la nave del jugador o disparar proyectiles.
+El juego utiliza programación orientada a eventos para manejar las interacciones del jugador con el entorno. Detecta eventos como entrada del teclado y responde apropiadamente (mover nave, disparar, etc.).
+
 ### Concurrencia Mediante Hilos
-Para mejorar la experiencia del juego y gestionar múltiples aspectos simultáneamente, se utilizarán hilos para ejecutar tareas en paralelo. Por ejemplo, un hilo podría encargarse de escuchar los eventos, mientras que otro podría manejar la lógica del juego.
-### Estrategias de Planificación
-El diseño del juego incluirá la implementación de una estrategia de planificación para determinar cómo aparecen los enemigos. Algunas estrategias podrían ser FCFS (First Come, First Served), SJF (Shortest Job First), SRTN (Shortest Remaining Time Next), u otras relevantes, para garantizar una experiencia de juego desafiante pero justa.
-### Algoritmo de remplazo de páginas
-Por suerte, la trayectorias de los aliens hasta la Tierra es ordenada. Los mismos no caen siempre en el mismo lugar. Es parte de tu misión implementar un algoritmo para saber dónde aterrizarán los enemigos. Como en la Tierra nos ayudamos, el título de esta sección te guiará con esta tarea.
-### Dónde estará
-Presentarás y defenderás tu proyecto en una máquina virtual con sistema operativo Arch Linux, demostrando tu comprensión y habilidades en un entorno de desarrollo coherente. Deberás ubicar el ejecutable de tu juego con los binarios del sistema. Este se debe ejecutar al escribir MatComInvasion en la consola
+Se utilizan dos hilos principales para ejecutar tareas en paralelo:
+- **Hilo de juego**: Actualiza estado del juego y renderiza gráficos
+- **Hilo de entrada**: Maneja input del usuario en tiempo real
+- **Sincronización**: Usa mutex (`pthread_mutex`) para evitar condiciones de carrera
+
+### Algoritmo de Reemplazo de Páginas (LRU)
+Implementa el algoritmo **Least Recently Used (LRU)** para determinar dónde aparecerán los enemigos en el campo de juego. Gestiona frames de memoria para los aliens de manera eficiente.
+
+### Algoritmo Next-Fit
+Usado para asignación eficiente de recursos:
+- Gestión de bullets (disparos)
+- Gestión de aliens activos
+- Optimiza el uso de memoria del juego
+
+## 🐛 Solución de Problemas
+
+### El juego no compila
+- Verifica que tengas instaladas todas las dependencias
+- Asegúrate de tener permisos de escritura en el directorio
+
+### Errores de ncurses
+```bash
+# Reinstalar ncurses
+sudo apt-get install --reinstall libncurses5-dev
+```
+
+### La terminal se ve mal después de salir
+```bash
+# Resetear la terminal
+reset
+```
+
+### Error: "No such file or directory" al ejecutar
+```bash
+# Asegúrate de que la carpeta data existe
+mkdir -p data
+```
+
+## 👥 Autor
+
+Proyecto desarrollado como parte del curso de Sistemas Operativos en la Facultad de Matemática y Computación, Universidad de La Habana.
+
+## 📜 Licencia
+
+Este proyecto es de código abierto para fines educativos.
+
+---
+
+**¡Disfruta del juego y defiende MatCom! 🌍🚀**

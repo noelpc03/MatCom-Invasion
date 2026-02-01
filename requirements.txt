@@ -1,6 +1,0 @@
-
-gcc -o MatComInvasion main.c -lncurses
-
-sudo mv MatComInvasion /usr/bin
-
-
